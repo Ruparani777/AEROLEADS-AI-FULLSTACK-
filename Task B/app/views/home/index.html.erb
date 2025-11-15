@@ -1,0 +1,291 @@
+<div class="container">
+  <h1>📞 Autodialer</h1>
+  
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-label">Total Calls</div>
+      <div class="stat-value" id="total-calls"><%= @calls.count %></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="pending-count"><%= @pending_count %></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Status</div>
+      <div class="stat-value">
+        <span id="running-status"><%= @is_running ? 'Running' : 'Stopped' %></span>
+        <span class="status-indicator <%= @is_running ? 'status-running' : 'status-stopped' %>" id="status-indicator">
+          <%= @is_running ? '●' : '○' %>
+        </span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Upload Phone Numbers</h2>
+    
+    <div class="form-group">
+      <label for="csv-file">Upload CSV File</label>
+      <input type="file" id="csv-file" accept=".csv" />
+      <button class="btn btn-primary" onclick="uploadCSV()">Upload CSV</button>
+    </div>
+    
+    <div class="form-group">
+      <label for="numbers-textarea">Or Paste Numbers (one per line, comma, or semicolon separated)</label>
+      <textarea id="numbers-textarea" placeholder="18001234567&#10;18009876543&#10;18005551234"></textarea>
+      <button class="btn btn-primary" onclick="uploadTextarea()">Upload Numbers</button>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>AI Prompt</h2>
+    <div class="ai-prompt-box">
+      <h2>💬 Voice Command</h2>
+      <p style="margin-bottom: 15px; opacity: 0.9;">Type a command like "call 18001234567" or "make a call to 1-800-123-4567"</p>
+      <input type="text" id="ai-prompt" placeholder="call 18001234567" />
+      <button class="btn" onclick="sendAIPrompt()">Send Command</button>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Call Controls</h2>
+    <button class="btn btn-primary" id="start-btn" onclick="startCalls()" <%= 'disabled' if @is_running %>>Start Calls</button>
+    <button class="btn btn-danger" id="stop-btn" onclick="stopCalls()" <%= 'disabled' unless @is_running %>>Stop Calls</button>
+  </div>
+  
+  <div class="section">
+    <h2>Call Log</h2>
+    <div class="calls-list" id="calls-list">
+      <% if @calls.any? %>
+        <% @calls.each do |call| %>
+          <div class="call-item <%= call.status %>">
+            <div class="call-info">
+              <div class="call-number"><%= call.number %></div>
+              <div class="call-status">Status: <strong><%= call.status %></strong></div>
+              <% if call.started_at %>
+                <div class="call-time">Started: <%= call.started_at.strftime('%H:%M:%S') %></div>
+              <% end %>
+              <% if call.finished_at %>
+                <div class="call-time">Finished: <%= call.finished_at.strftime('%H:%M:%S') %></div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <p style="text-align: center; color: #999; padding: 20px;">No calls yet. Upload numbers to get started.</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pollingInterval;
+  
+  function uploadCSV() {
+    const fileInput = document.getElementById('csv-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+      alert('Please select a CSV file');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/calls/upload_csv', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(`Uploaded ${data.count} numbers`);
+      fileInput.value = '';
+      refreshStatus();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error uploading file');
+    });
+  }
+  
+  function uploadTextarea() {
+    const textarea = document.getElementById('numbers-textarea');
+    const numbers = textarea.value;
+    
+    if (!numbers.trim()) {
+      alert('Please enter phone numbers');
+      return;
+    }
+    
+    fetch('/calls/upload_textarea', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ numbers: numbers })
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(`Uploaded ${data.count} numbers`);
+      textarea.value = '';
+      refreshStatus();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error uploading numbers');
+    });
+  }
+  
+  function sendAIPrompt() {
+    const promptInput = document.getElementById('ai-prompt');
+    const prompt = promptInput.value.trim();
+    
+    if (!prompt) {
+      alert('Please enter a command');
+      return;
+    }
+    
+    fetch('/calls/ai_prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ prompt: prompt })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert(data.error);
+      } else {
+        alert(`Call initiated to ${data.call.number}`);
+        promptInput.value = '';
+        refreshStatus();
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error processing command');
+    });
+  }
+  
+  function startCalls() {
+    fetch('/calls/start_calls', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('start-btn').disabled = true;
+      document.getElementById('stop-btn').disabled = false;
+      document.getElementById('running-status').textContent = 'Running';
+      document.getElementById('status-indicator').className = 'status-indicator status-running';
+      document.getElementById('status-indicator').textContent = '●';
+      startPolling();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error starting calls');
+    });
+  }
+  
+  function stopCalls() {
+    fetch('/calls/stop_calls', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('stop-btn').disabled = true;
+      document.getElementById('running-status').textContent = 'Stopped';
+      document.getElementById('status-indicator').className = 'status-indicator status-stopped';
+      document.getElementById('status-indicator').textContent = '○';
+      stopPolling();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error stopping calls');
+    });
+  }
+  
+  function refreshStatus() {
+    fetch('/calls/status')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('total-calls').textContent = data.calls.length;
+      document.getElementById('pending-count').textContent = data.pending_count;
+      
+      const callsList = document.getElementById('calls-list');
+      if (data.calls.length === 0) {
+        callsList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No calls yet. Upload numbers to get started.</p>';
+      } else {
+        callsList.innerHTML = data.calls.map(call => {
+          const started = call.started_at ? new Date(call.started_at).toLocaleTimeString() : '';
+          const finished = call.finished_at ? new Date(call.finished_at).toLocaleTimeString() : '';
+          return `
+            <div class="call-item ${call.status}">
+              <div class="call-info">
+                <div class="call-number">${call.number}</div>
+                <div class="call-status">Status: <strong>${call.status}</strong></div>
+                ${started ? `<div class="call-time">Started: ${started}</div>` : ''}
+                ${finished ? `<div class="call-time">Finished: ${finished}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      if (data.is_running) {
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+        document.getElementById('running-status').textContent = 'Running';
+        document.getElementById('status-indicator').className = 'status-indicator status-running';
+        document.getElementById('status-indicator').textContent = '●';
+      } else {
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('stop-btn').disabled = true;
+        document.getElementById('running-status').textContent = 'Stopped';
+        document.getElementById('status-indicator').className = 'status-indicator status-stopped';
+        document.getElementById('status-indicator').textContent = '○';
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  }
+  
+  function startPolling() {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(refreshStatus, 2000); // Poll every 2 seconds
+  }
+  
+  function stopPolling() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  }
+  
+  // Start polling if calls are running on page load
+  <% if @is_running %>
+    startPolling();
+  <% end %>
+  
+  // Allow Enter key in AI prompt
+  document.getElementById('ai-prompt').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      sendAIPrompt();
+    }
+  });
+</script>
+

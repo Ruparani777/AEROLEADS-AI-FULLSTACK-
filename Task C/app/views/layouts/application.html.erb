@@ -1,0 +1,23 @@
+ <div class="container">
+        <h1>🤖 AI Blog Generator</h1>
+        <nav>
+          <%= link_to 'Home', blog_index_path %>
+          <%= link_to 'New Articles', new_blog_path %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <% if notice %>
+        <div class="alert alert-success"><%= notice %></div>
+      <% end %>
+      
+      <% if alert %>
+        <div class="alert alert-error"><%= alert %></div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>
+

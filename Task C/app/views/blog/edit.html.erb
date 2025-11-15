@@ -1,0 +1,44 @@
+<h1>Edit Article</h1>
+
+<div class="post-card">
+  <%= form_with model: @post, url: blog_path(@post), local: true do |form| %>
+    <% if @post.errors.any? %>
+      <div class="alert alert-error">
+        <ul>
+          <% @post.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <%= form.label :title %>
+      <%= form.text_field :title, class: 'form-control', style: 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;' %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :content %>
+      <%= form.text_area :content, rows: 30, class: 'form-control', style: 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;' %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :status %>
+      <%= form.select :status, options_for_select([['Draft', 'draft'], ['Published', 'published']], @post.status), {}, { style: 'padding: 10px; border: 1px solid #ddd; border-radius: 4px;' } %>
+    </div>
+
+    <div class="form-group">
+      <%= form.submit 'Update Article', class: 'btn btn-success' %>
+      <%= link_to 'Cancel', blog_path(@post), class: 'btn' %>
+    </div>
+  <% end %>
+
+  <% if @post.generation_log.present? %>
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+    <details>
+      <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Generation Log</summary>
+      <pre style="background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px;"><%= @post.generation_log %></pre>
+    </details>
+  <% end %>
+</div>
+

@@ -1,0 +1,6 @@
+# Add LinkedIn profile URLs here (one per line)
+# IMPORTANT: Only scrape profiles you have permission to access
+# This is for educational purposes with test accounts only
+
+https://www.linkedin.com/in/aditya-904991165/
+https://www.linkedin.com/in/saatvik-jain-725461223/

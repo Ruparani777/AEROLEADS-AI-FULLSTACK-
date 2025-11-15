@@ -108,7 +108,4 @@ The app includes TwiML endpoints at:
 - `/twiml/voice` - Voice response handler
 - `/twiml/status` - Status callback handler
 
-## License
-
-MIT
 

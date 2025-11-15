@@ -128,7 +128,7 @@ Before running this scraper, ensure you have:
 ### Step 1: Clone or Download This Repository
 
 ```bash
-cd "c:/Users/gjanl/OneDrive/Desktop/aeroleads task A"
+cd
 ```
 
 ### Step 2: Create Virtual Environment (Recommended)
@@ -491,4 +491,4 @@ Here's what the CSV output looks like (with anonymized data):
 
 ---
 
-**Created for learning purposes only. Use at your own risk.**
+

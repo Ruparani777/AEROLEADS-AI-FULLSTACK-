@@ -1,0 +1,128 @@
+<h1>Generate New Articles</h1>
+
+<div class="post-card">
+  <p style="margin-bottom: 20px;">
+    Paste a list of article titles below (one per line) and click "Generate Articles" to create blog posts using AI.
+  </p>
+
+  <form id="article-form">
+    <div class="form-group">
+      <label for="titles">Article Titles (one per line):</label>
+      <textarea 
+        id="titles" 
+        name="titles" 
+        rows="15" 
+        placeholder="Example:
+Getting Started with Ruby on Rails
+Understanding JavaScript Promises
+Introduction to React Hooks
+Mastering CSS Flexbox
+Python for Data Science Basics"
+        required
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <button type="submit" class="btn btn-success" id="generate-btn">Generate Articles</button>
+      <span id="status-message" style="margin-left: 15px;"></span>
+    </div>
+  </form>
+
+  <div id="progress-container" style="display: none; margin-top: 20px;">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="margin-top: 15px;">Generating articles... This may take a few minutes.</p>
+      <p id="progress-text" style="color: #7f8c8d; font-size: 14px;"></p>
+    </div>
+  </div>
+
+  <div id="results-container" style="display: none; margin-top: 20px;">
+    <h3>Generation Results</h3>
+    <div id="results-content"></div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('article-form');
+    const generateBtn = document.getElementById('generate-btn');
+    const statusMessage = document.getElementById('status-message');
+    const progressContainer = document.getElementById('progress-container');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsContent = document.getElementById('results-content');
+    const progressText = document.getElementById('progress-text');
+
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const titles = document.getElementById('titles').value.trim();
+      if (!titles) {
+        alert('Please enter at least one title');
+        return;
+      }
+
+      // Disable button and show progress
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generating...';
+      statusMessage.textContent = '';
+      progressContainer.style.display = 'block';
+      resultsContainer.style.display = 'none';
+      progressText.textContent = 'Starting generation...';
+
+      try {
+        const formData = new FormData();
+        formData.append('titles', titles);
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        const response = await fetch('/blog/generate_articles', {
+          method: 'POST',
+          headers: {
+            'X-CSRF-Token': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          statusMessage.textContent = `Successfully generated ${data.generated} articles!`;
+          statusMessage.style.color = '#27ae60';
+          
+          let html = `<p><strong>Generated:</strong> ${data.generated} articles`;
+          if (data.errors > 0) {
+            html += `, <strong>Errors:</strong> ${data.errors}`;
+          }
+          html += '</p>';
+          
+          if (data.posts && data.posts.length > 0) {
+            html += '<ul style="margin-top: 15px;">';
+            data.posts.forEach(post => {
+              html += `<li><a href="/blog/${post.id}">${post.title}</a> - <span class="status-badge status-${post.status}">${post.status}</span></li>`;
+            });
+            html += '</ul>';
+          }
+          
+          resultsContent.innerHTML = html;
+          resultsContainer.style.display = 'block';
+          
+          // Clear the textarea
+          document.getElementById('titles').value = '';
+        } else {
+          statusMessage.textContent = 'Error: ' + (data.error || 'Unknown error');
+          statusMessage.style.color = '#e74c3c';
+        }
+      } catch (error) {
+        statusMessage.textContent = 'Error: ' + error.message;
+        statusMessage.style.color = '#e74c3c';
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate Articles';
+        progressContainer.style.display = 'none';
+      }
+    });
+  });
+</script>
+
